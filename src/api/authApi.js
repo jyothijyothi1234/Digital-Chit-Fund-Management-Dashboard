@@ -22,6 +22,9 @@ export async function resendOtp({ mobile }) {
 }
 
 export async function login({ identifier, password }) {
-  const response = await http.post('/api/auth/login', { identifier, email: identifier, password })
+  const response = await http.post('/api/auth/login', {
+    identifier,
+    password,
+  })
   return unwrap(response)
 }
