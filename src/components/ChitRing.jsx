@@ -1,6 +1,7 @@
-
+// The chit, drawn: 20 members around one pot. Months 1-6 have taken their turn,
+// month 7 is this month's auction, the rest are still to come.
 const MEMBERS = 20
-const CURRENT = 6 
+const CURRENT = 6 // zero-based: the 7th member
 const C = 160
 const R = 118
 

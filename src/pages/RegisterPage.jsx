@@ -11,15 +11,12 @@ import StepIndicator from '../components/StepIndicator'
 import { registerCustomer } from '../api/authApi'
 import { parseApiError } from '../api/client'
 import { OTP_DEFAULTS } from '../config'
+import { duplicateField } from '../utils/backendErrors'
 import { loadRegisterDraft, saveRegisterDraft, savePendingVerification } from '../utils/flowStorage'
 import { useDocumentTitle } from '../utils/hooks'
+import { fieldError } from '../utils/formErrors'
 import { digitsOnly, validateMobile, validateName, validateNewPassword, validateOptionalEmail } from '../utils/validators'
 
-// Backend error codes that belong to one field.
-const FIELD_FOR_CODE = {
-  MOBILE_ALREADY_REGISTERED: 'mobile',
-  EMAIL_ALREADY_REGISTERED: 'email',
-}
 
 export default function RegisterPage() {
   useDocumentTitle('Create account')
@@ -57,7 +54,7 @@ export default function RegisterPage() {
       } catch (error) {
         const err = parseApiError(error)
         const fieldErrors = { ...err.fieldErrors }
-        const field = FIELD_FOR_CODE[err.code]
+        const field = duplicateField(err)
         if (field) fieldErrors[field] = err.message
         if (Object.keys(fieldErrors).length) {
           helpers.setErrors(fieldErrors)
@@ -70,9 +67,9 @@ export default function RegisterPage() {
     },
   })
 
-  const showError = (name) => (formik.touched[name] || formik.submitCount > 0 ? formik.errors[name] : undefined)
+  const showError = (name) => fieldError(formik, name)
 
-  const alreadyRegistered = problem?.code === 'MOBILE_ALREADY_REGISTERED'
+  const alreadyRegistered = duplicateField(problem) === 'mobile'
 
   return (
     <AuthLayout headline="Join a chit group from your phone.">

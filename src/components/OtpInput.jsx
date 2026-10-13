@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react'
 
+/**
+ * Six single-digit boxes. Supports typing, backspace, arrow keys, pasting the whole code
+ * and SMS autofill (autocomplete="one-time-code" on the first box).
+ */
 export default function OtpInput({ length = 6, value, onChange, onComplete, disabled, invalid, autoFocus, describedBy }) {
   const inputs = useRef([])
   const digits = Array.from({ length }, (_, i) => value[i] || '')

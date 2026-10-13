@@ -8,18 +8,17 @@ import Icon from '../components/Icon'
 import StepIndicator from '../components/StepIndicator'
 import { resendOtp, verifyOtp } from '../api/authApi'
 import { parseApiError } from '../api/client'
-import { IS_DEV, OTP_DEFAULTS } from '../config'
+import { FEATURES, IS_DEV, OTP_DEFAULTS } from '../config'
+import { otpFailure } from '../utils/backendErrors'
 import {
   clearPendingVerification,
   clearRegisterDraft,
   loadPendingVerification,
   savePendingVerification,
+  updatePendingVerification,
 } from '../utils/flowStorage'
 import { formatClock, useDocumentTitle, useSecondsUntil } from '../utils/hooks'
 import { formatMobile } from '../utils/validators'
-
-// These mean the current OTP can no longer be used; the only way on is a new one.
-const NEEDS_NEW_OTP = new Set(['OTP_EXPIRED', 'OTP_ATTEMPTS_EXCEEDED', 'OTP_ALREADY_USED', 'OTP_NOT_FOUND'])
 
 export default function VerifyOtpPage() {
   useDocumentTitle('Verify mobile')
@@ -29,7 +28,7 @@ export default function VerifyOtpPage() {
   const [verifying, setVerifying] = useState(false)
   const [resending, setResending] = useState(false)
   const [message, setMessage] = useState(null) // { tone, text }
-  const [blocked, setBlocked] = useState(false) // current OTP unusable
+  const [blocked, setBlocked] = useState(false) // current OTP can no longer be used
   const [shakeKey, setShakeKey] = useState(0)
   const submittingRef = useRef(false)
 
@@ -38,34 +37,48 @@ export default function VerifyOtpPage() {
   if (!pending?.mobile) return <Navigate to="/register" replace />
 
   const expired = expiresIn === 0
-  const canVerify = otp.length === OTP_DEFAULTS.length && !expired && !blocked
+  const attemptsLeft = Math.max(0, pending.maxAttempts - (pending.attemptsUsed || 0))
+  const dead = expired || blocked || attemptsLeft === 0
+  const canVerify = otp.length === OTP_DEFAULTS.length && !dead
+
+  const finish = (flash) => {
+    clearPendingVerification()
+    clearRegisterDraft()
+    navigate('/login', { replace: true, state: { flash, identifier: pending.mobile } })
+  }
 
   const submit = async (code) => {
-    if (submittingRef.current) return
-    if (code.length !== OTP_DEFAULTS.length || expired || blocked) return
+    if (submittingRef.current || code.length !== OTP_DEFAULTS.length || dead) return
     submittingRef.current = true
     setVerifying(true)
     setMessage(null)
     try {
       await verifyOtp({ mobile: pending.mobile, otp: code })
-      clearPendingVerification()
-      clearRegisterDraft()
-      navigate('/login', {
-        replace: true,
-        state: { flash: 'Your mobile number is verified. Sign in to continue.', identifier: pending.mobile },
-      })
+      finish('Your mobile number is verified. Sign in to continue.')
     } catch (error) {
       const err = parseApiError(error)
-      if (err.code === 'ALREADY_VERIFIED') {
-        clearPendingVerification()
-        clearRegisterDraft()
-        navigate('/login', { replace: true, state: { flash: err.message, identifier: pending.mobile } })
+      const kind = otpFailure(err)
+      if (kind === 'used') {
+        finish('This mobile number is already verified. Sign in to continue.')
         return
       }
       setOtp('')
       setShakeKey((k) => k + 1)
-      setBlocked(NEEDS_NEW_OTP.has(err.code))
-      setMessage({ tone: 'error', text: err.message })
+      if (kind === 'invalid') {
+        // The backend only says "Invalid OTP", so count attempts here (it allows 3).
+        const next = { ...pending, attemptsUsed: (pending.attemptsUsed || 0) + 1 }
+        updatePendingVerification(next)
+        setPending(next)
+        const left = Math.max(0, next.maxAttempts - next.attemptsUsed)
+        setBlocked(left === 0)
+        setMessage({
+          tone: 'error',
+          text: left > 0 ? `Incorrect OTP. ${left} ${left === 1 ? 'attempt' : 'attempts'} left.` : 'Incorrect OTP. No attempts left.',
+        })
+      } else {
+        setBlocked(kind === 'expired' || kind === 'exhausted' || kind === 'missing')
+        setMessage({ tone: 'error', text: err.message })
+      }
     } finally {
       submittingRef.current = false
       setVerifying(false)
@@ -82,13 +95,7 @@ export default function VerifyOtpPage() {
       setBlocked(false)
       setMessage({ tone: 'success', text: text || 'We sent you a new OTP.' })
     } catch (error) {
-      const err = parseApiError(error)
-      if (err.code === 'ALREADY_VERIFIED') {
-        clearPendingVerification()
-        navigate('/login', { replace: true, state: { flash: err.message, identifier: pending.mobile } })
-        return
-      }
-      setMessage({ tone: 'error', text: err.message })
+      setMessage({ tone: 'error', text: parseApiError(error).message })
     } finally {
       setResending(false)
     }
@@ -124,10 +131,10 @@ export default function VerifyOtpPage() {
             value={otp}
             onChange={(v) => {
               setOtp(v)
-              if (message?.tone === 'error' && !blocked) setMessage(null)
+              if (message?.tone === 'error' && !dead) setMessage(null)
             }}
             onComplete={submit}
-            disabled={verifying || expired || blocked}
+            disabled={verifying || dead}
             invalid={message?.tone === 'error'}
             autoFocus
             describedBy="otp-help otp-timer"
@@ -135,14 +142,14 @@ export default function VerifyOtpPage() {
         </div>
 
         <p className="otp-meta" id="otp-timer" aria-live="polite">
-          {expired ? (
-            <span className="otp-meta__expired">This OTP has expired. Request a new one below.</span>
-          ) : blocked ? (
-            <span className="otp-meta__expired">Request a new OTP to try again.</span>
+          {dead ? (
+            <span className="otp-meta__expired">
+              {expired ? 'This OTP has expired.' : 'This OTP can no longer be used.'}
+            </span>
           ) : (
             <span>
               Code expires in <strong className="tabular">{formatClock(expiresIn)}</strong>.
-              {message?.tone !== 'error' && ` You have ${pending.maxAttempts} attempts.`}
+              {message?.tone !== 'error' && ` You have ${attemptsLeft} ${attemptsLeft === 1 ? 'attempt' : 'attempts'}.`}
             </span>
           )}
         </p>
@@ -151,20 +158,28 @@ export default function VerifyOtpPage() {
           Verify and create account
         </Button>
 
-        <div className="resend">
-          <span>Didn't get the code?</span>
-        git   {resendIn > 0 && !expired && !blocked ? (
-            <span className="resend__wait tabular">Resend in {formatClock(resendIn)}</span>
-          ) : (
-            <button type="button" className="link-btn" onClick={resend} disabled={resending}>
-              {resending ? 'Sending…' : 'Send a new OTP'}
-            </button>
-          )}
-        </div>
+        {FEATURES.resendRegistrationOtp ? (
+          <div className="resend">
+            <span>Didn't get the code?</span>
+            {resendIn > 0 && !dead ? (
+              <span className="resend__wait tabular">Resend in {formatClock(resendIn)}</span>
+            ) : (
+              <button type="button" className="link-btn" onClick={resend} disabled={resending}>
+                {resending ? 'Sending…' : 'Send a new OTP'}
+              </button>
+            )}
+          </div>
+        ) : (
+          dead && (
+            <p className="resend">
+              A new OTP can't be sent from the app yet. Contact your branch to finish activating your account.
+            </p>
+          )
+        )}
 
         {IS_DEV && (
           <p className="dev-note">
-            Development: no SMS is sent yet. The OTP is printed in the Spring Boot console.
+            Development: no SMS is sent yet. The OTP is printed in the Spring Boot console (purpose REGISTRATION).
           </p>
         )}
       </form>

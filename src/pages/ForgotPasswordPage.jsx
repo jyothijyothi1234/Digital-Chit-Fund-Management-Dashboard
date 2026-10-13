@@ -10,28 +10,14 @@ import Button from '../components/Button'
 import Alert from '../components/Alert'
 import Icon from '../components/Icon'
 import StepIndicator from '../components/StepIndicator'
-import {
-  forgotPassword,
-  resetPassword,
-  verifyRecoveryOtp,
-} from '../api/authApi'
+import { forgotPassword, resetPassword, verifyRecoveryOtp } from '../api/authApi'
 import { parseApiError } from '../api/client'
 import { IS_DEV, OTP_DEFAULTS } from '../config'
 import { isNeutralRecoveryReply, otpFailure } from '../utils/backendErrors'
-import {
-  clearRecovery,
-  loadRecovery,
-  saveRecovery,
-  startRecovery,
-} from '../utils/flowStorage'
+import { clearRecovery, loadRecovery, saveRecovery, startRecovery } from '../utils/flowStorage'
 import { formatClock, useDocumentTitle, useSecondsUntil } from '../utils/hooks'
 import { fieldError } from '../utils/formErrors'
-import {
-  formatMobile,
-  normalizeIdentifier,
-  validateIdentifier,
-  validateNewPassword,
-} from '../utils/validators'
+import { formatMobile, normalizeIdentifier, validateIdentifier, validateNewPassword } from '../utils/validators'
 
 const STEPS = ['Account', 'Verify OTP', 'New password']
 const STEP_NUMBER = { find: 1, otp: 2, reset: 3 }
@@ -52,10 +38,7 @@ export default function ForgotPasswordPage() {
   const [message, setMessage] = useState(null) // { tone, text }
 
   const step = recovery?.step || 'find'
-  const [expiresIn, resendIn] = useSecondsUntil(
-    recovery?.expiresAt,
-    recovery?.resendAt,
-  )
+  const [expiresIn, resendIn] = useSecondsUntil(recovery?.expiresAt, recovery?.resendAt)
 
   const update = (next) => {
     if (next) saveRecovery(next)
@@ -90,12 +73,7 @@ export default function ForgotPasswordPage() {
         }
       }
       update(startRecovery({ identifier, defaults: OTP_DEFAULTS }))
-      setMessage({
-        tone: 'info',
-        text: `If an account exists for ${displayIdentifier(
-          identifier,
-        )}, we've sent it a 6-digit OTP.`,
-      })
+      setMessage({ tone: 'info', text: `If an account exists for ${displayIdentifier(identifier)}, we've sent it a 6-digit OTP.` })
     },
   })
 
@@ -107,11 +85,7 @@ export default function ForgotPasswordPage() {
           Back to sign in
         </Link>
       ) : (
-        <button
-          type="button"
-          className="back-link link-reset"
-          onClick={() => startOver()}
-        >
+        <button type="button" className="back-link link-reset" onClick={() => startOver()}>
           <Icon name="back" size={18} />
           Use a different mobile or email
         </button>
@@ -120,26 +94,16 @@ export default function ForgotPasswordPage() {
       <header className="form-head">
         <StepIndicator current={STEP_NUMBER[step]} steps={STEPS} />
         <h1 className="form-head__title">
-          {step === 'find'
-            ? 'Reset your password'
-            : step === 'otp'
-            ? 'Enter the OTP'
-            : 'Choose a new password'}
+          {step === 'find' ? 'Reset your password' : step === 'otp' ? 'Enter the OTP' : 'Choose a new password'}
         </h1>
         <p className="form-head__lede">
-          {step === 'find' &&
-            "Enter the mobile number or email on your account. We'll send you a one-time code."}
+          {step === 'find' && "Enter the mobile number or email on your account. We'll send you a one-time code."}
           {step === 'otp' && (
             <>
-              Enter the 6-digit code sent for{' '}
-              <strong className="nowrap">
-                {displayIdentifier(recovery.identifier)}
-              </strong>
-              .
+              Enter the 6-digit code sent for <strong className="nowrap">{displayIdentifier(recovery.identifier)}</strong>.
             </>
           )}
-          {step === 'reset' &&
-            'Use at least 8 characters with a letter and a number.'}
+          {step === 'reset' && 'Use at least 8 characters with a letter and a number.'}
         </p>
       </header>
 
@@ -161,11 +125,7 @@ export default function ForgotPasswordPage() {
             error={fieldError(findForm, 'identifier')}
             autoFocus
           />
-          <Button
-            loading={findForm.isSubmitting}
-            loadingText="Sending OTP…"
-            className="btn--block"
-          >
+          <Button loading={findForm.isSubmitting} loadingText="Sending OTP…" className="btn--block">
             Send OTP
           </Button>
         </form>
@@ -178,10 +138,7 @@ export default function ForgotPasswordPage() {
           resendIn={resendIn}
           onVerified={() => {
             update({ ...recovery, step: 'reset' })
-            setMessage({
-              tone: 'success',
-              text: 'Code verified. Now choose a new password.',
-            })
+            setMessage({ tone: 'success', text: 'Code verified. Now choose a new password.' })
           }}
           onUpdate={update}
           setMessage={setMessage}
@@ -192,20 +149,12 @@ export default function ForgotPasswordPage() {
         <ResetStep
           recovery={recovery}
           expiresIn={expiresIn}
-          onExpired={() =>
-            startOver(
-              'The time to reset your password ran out. Request a new OTP.',
-            )
-          }
+          onExpired={() => startOver('The time to reset your password ran out. Request a new OTP.')}
           onDone={() => {
             clearRecovery()
             navigate('/login', {
               replace: true,
-              state: {
-                flash:
-                  'Your password has been changed. Sign in with your new password.',
-                identifier: recovery.identifier,
-              },
+              state: { flash: 'Your password has been changed. Sign in with your new password.', identifier: recovery.identifier },
             })
           }}
           setMessage={setMessage}
@@ -214,8 +163,7 @@ export default function ForgotPasswordPage() {
 
       {IS_DEV && step === 'otp' && (
         <p className="dev-note form-gap">
-          Development: no SMS is sent yet. The OTP is printed in the Spring Boot
-          console (purpose PASSWORD_RECOVERY).
+          Development: no SMS is sent yet. The OTP is printed in the Spring Boot console (purpose PASSWORD_RECOVERY).
         </p>
       )}
     </AuthLayout>
@@ -223,14 +171,7 @@ export default function ForgotPasswordPage() {
 }
 
 // ---------- Step 2: verify the recovery OTP ----------
-function RecoveryOtpStep({
-  recovery,
-  expiresIn,
-  resendIn,
-  onVerified,
-  onUpdate,
-  setMessage,
-}) {
+function RecoveryOtpStep({ recovery, expiresIn, resendIn, onVerified, onUpdate, setMessage }) {
   const [otp, setOtp] = useState('')
   const [busy, setBusy] = useState(false)
   const [resending, setResending] = useState(false)
@@ -239,16 +180,12 @@ function RecoveryOtpStep({
   const [shakeKey, setShakeKey] = useState(0)
   const submittingRef = useRef(false)
 
-  const attemptsLeft = Math.max(
-    0,
-    recovery.maxAttempts - (recovery.attemptsUsed || 0),
-  )
+  const attemptsLeft = Math.max(0, recovery.maxAttempts - (recovery.attemptsUsed || 0))
   const expired = expiresIn === 0
   const dead = expired || blocked || attemptsLeft === 0
 
   const submit = async (code) => {
-    if (submittingRef.current || code.length !== OTP_DEFAULTS.length || dead)
-      return
+    if (submittingRef.current || code.length !== OTP_DEFAULTS.length || dead) return
     submittingRef.current = true
     setBusy(true)
     setMessage(null)
@@ -262,26 +199,16 @@ function RecoveryOtpStep({
       setInvalid(true)
       setShakeKey((k) => k + 1)
       if (kind === 'invalid') {
-        const next = {
-          ...recovery,
-          attemptsUsed: (recovery.attemptsUsed || 0) + 1,
-        }
+        const next = { ...recovery, attemptsUsed: (recovery.attemptsUsed || 0) + 1 }
         onUpdate(next)
         const left = Math.max(0, next.maxAttempts - next.attemptsUsed)
         setMessage({
           tone: 'error',
-          text:
-            left > 0
-              ? `Incorrect OTP. ${left} ${
-                  left === 1 ? 'attempt' : 'attempts'
-                } left.`
-              : 'Incorrect OTP. No attempts left. Request a new one.',
+          text: left > 0 ? `Incorrect OTP. ${left} ${left === 1 ? 'attempt' : 'attempts'} left.` : 'Incorrect OTP. No attempts left. Request a new one.',
         })
       } else {
         // "Invalid recovery details" (unknown account), expired, exhausted, already used.
-        setBlocked(
-          kind !== null || /invalid recovery details/i.test(err.message),
-        )
+        setBlocked(kind !== null || /invalid recovery details/i.test(err.message))
         setMessage({ tone: 'error', text: err.message })
       }
     } finally {
@@ -304,12 +231,7 @@ function RecoveryOtpStep({
         return
       }
     }
-    onUpdate(
-      startRecovery({
-        identifier: recovery.identifier,
-        defaults: OTP_DEFAULTS,
-      }),
-    )
+    onUpdate(startRecovery({ identifier: recovery.identifier, defaults: OTP_DEFAULTS }))
     setOtp('')
     setInvalid(false)
     setBlocked(false)
@@ -347,44 +269,26 @@ function RecoveryOtpStep({
       <p className="otp-meta" id="recovery-timer" aria-live="polite">
         {dead ? (
           <span className="otp-meta__expired">
-            {expired
-              ? 'This OTP has expired. Request a new one below.'
-              : 'Request a new OTP to try again.'}
+            {expired ? 'This OTP has expired. Request a new one below.' : 'Request a new OTP to try again.'}
           </span>
         ) : (
           <span>
-            Code expires in{' '}
-            <strong className="tabular">{formatClock(expiresIn)}</strong>.
-            {!invalid &&
-              ` You have ${attemptsLeft} ${
-                attemptsLeft === 1 ? 'attempt' : 'attempts'
-              }.`}
+            Code expires in <strong className="tabular">{formatClock(expiresIn)}</strong>.
+            {!invalid && ` You have ${attemptsLeft} ${attemptsLeft === 1 ? 'attempt' : 'attempts'}.`}
           </span>
         )}
       </p>
 
-      <Button
-        loading={busy}
-        loadingText="Verifying…"
-        disabled={otp.length !== OTP_DEFAULTS.length || dead}
-        className="btn--block"
-      >
+      <Button loading={busy} loadingText="Verifying…" disabled={otp.length !== OTP_DEFAULTS.length || dead} className="btn--block">
         Verify code
       </Button>
 
       <div className="resend">
         <span>Didn't get the code?</span>
         {resendIn > 0 && !dead ? (
-          <span className="resend__wait tabular">
-            Resend in {formatClock(resendIn)}
-          </span>
+          <span className="resend__wait tabular">Resend in {formatClock(resendIn)}</span>
         ) : (
-          <button
-            type="button"
-            className="link-btn"
-            onClick={resend}
-            disabled={resending}
-          >
+          <button type="button" className="link-btn" onClick={resend} disabled={resending}>
             {resending ? 'Sending…' : 'Send a new OTP'}
           </button>
         )}
@@ -404,10 +308,8 @@ function ResetStep({ recovery, expiresIn, onExpired, onDone, setMessage }) {
       const errors = {}
       const pw = validateNewPassword(v.newPassword)
       if (pw) errors.newPassword = pw
-      if (!v.confirmPassword)
-        errors.confirmPassword = 'Type the new password again'
-      else if (v.confirmPassword !== v.newPassword)
-        errors.confirmPassword = "The passwords don't match"
+      if (!v.confirmPassword) errors.confirmPassword = 'Type the new password again'
+      else if (v.confirmPassword !== v.newPassword) errors.confirmPassword = "The passwords don't match"
       return errors
     },
     onSubmit: async (values) => {
@@ -417,19 +319,11 @@ function ResetStep({ recovery, expiresIn, onExpired, onDone, setMessage }) {
       }
       setMessage(null)
       try {
-        await resetPassword({
-          identifier: recovery.identifier,
-          newPassword: values.newPassword,
-        })
+        await resetPassword({ identifier: recovery.identifier, newPassword: values.newPassword })
         onDone()
       } catch (error) {
         const err = parseApiError(error)
-        if (
-          /expired|verify the recovery otp|recovery otp not found/i.test(
-            err.message,
-          )
-        )
-          onExpired()
+        if (/expired|verify the recovery otp|recovery otp not found/i.test(err.message)) onExpired()
         else setMessage({ tone: 'error', text: err.message })
       }
     },
@@ -455,9 +349,7 @@ function ResetStep({ recovery, expiresIn, onExpired, onDone, setMessage }) {
           maxLength={64}
           autoFocus
         />
-        {(focused || form.values.newPassword) && (
-          <PasswordChecklist value={form.values.newPassword} />
-        )}
+        {(focused || form.values.newPassword) && <PasswordChecklist value={form.values.newPassword} />}
       </div>
 
       <PasswordField
@@ -473,13 +365,10 @@ function ResetStep({ recovery, expiresIn, onExpired, onDone, setMessage }) {
 
       <p className="otp-meta" aria-live="polite">
         {expired ? (
-          <span className="otp-meta__expired">
-            Time ran out. Request a new OTP to continue.
-          </span>
+          <span className="otp-meta__expired">Time ran out. Request a new OTP to continue.</span>
         ) : (
           <span>
-            Set your new password within{' '}
-            <strong className="tabular">{formatClock(expiresIn)}</strong>.
+            Set your new password within <strong className="tabular">{formatClock(expiresIn)}</strong>.
           </span>
         )}
       </p>
@@ -489,11 +378,7 @@ function ResetStep({ recovery, expiresIn, onExpired, onDone, setMessage }) {
           Request a new OTP
         </Button>
       ) : (
-        <Button
-          loading={form.isSubmitting}
-          loadingText="Saving…"
-          className="btn--block"
-        >
+        <Button loading={form.isSubmitting} loadingText="Saving…" className="btn--block">
           Save new password
         </Button>
       )}
