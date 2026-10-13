@@ -1,7 +1,10 @@
 import { useId } from 'react'
 import Icon from './Icon'
 
-
+/**
+ * Labelled input with hint, error and an optional fixed prefix (e.g. +91).
+ * `trailing` renders inside the box on the right (used by the password toggle).
+ */
 export default function TextField({ label, optional, hint, error, prefix, trailing, labelAside, className = '', ...inputProps }) {
   const id = useId()
   const hintId = hint ? `${id}-hint` : undefined
