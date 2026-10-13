@@ -153,7 +153,7 @@ export default function VerifyOtpPage() {
 
         <div className="resend">
           <span>Didn't get the code?</span>
-          {resendIn > 0 && !expired && !blocked ? (
+        git   {resendIn > 0 && !expired && !blocked ? (
             <span className="resend__wait tabular">Resend in {formatClock(resendIn)}</span>
           ) : (
             <button type="button" className="link-btn" onClick={resend} disabled={resending}>

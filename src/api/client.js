@@ -4,47 +4,69 @@ import { getAccessToken } from '../auth/session'
 
 export const UNAUTHORIZED_EVENT = 'dc:unauthorized'
 
+// Endpoints that work without a token (SecurityConfig.permitAll).
+const PUBLIC_PATHS = [
+  '/api/auth/register',
+  '/api/auth/verify-otp',
+  '/api/auth/login',
+  '/api/auth/forgot-password',
+  '/api/auth/verify-recovery-otp',
+  '/api/auth/reset-password',
+]
+
 export const http = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Ready for JWT: once the backend returns an accessToken at login, every request carries it.
+// Every protected request carries the JWT from login, unless the caller set one already.
 http.interceptors.request.use((config) => {
   const token = getAccessToken()
-  if (token) {
-    config.headers = config.headers || {}
+  config.headers = config.headers || {}
+  const hasAuth = Boolean(config.headers.Authorization || config.headers.authorization)
+  if (token && !hasAuth && !PUBLIC_PATHS.includes(config.url)) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
 
+// A 401 from a protected endpoint means the token expired or was revoked: sign out.
 http.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status
-    const isAuthCall = error.config?.url?.startsWith('/api/auth/')
-    if (status === 401 && !isAuthCall && getAccessToken()) {
+    const url = error.config?.url
+    const usedSavedToken = !error.config?.skipAuthEvent
+    if (status === 401 && url && !PUBLIC_PATHS.includes(url) && usedSavedToken && getAccessToken()) {
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
     }
     return Promise.reject(error)
   },
 )
 
+/** Bearer header for a token that is not saved yet (right after login). */
+export const withToken = (token) => ({ headers: { Authorization: `Bearer ${token}` }, skipAuthEvent: true })
+
 /**
  * Normalises any success body into { message, data }.
- * Works with the new ApiResponse envelope and with the older plain-string responses.
+ * - plain text            "OTP verified successfully"   -> { message: text, data: null }
+ * - { message }           { message: "Logout successful" } -> { message, data: body }
+ * - an object             { token, userType, role }      -> { message: '', data: body }
+ * - ApiResponse envelope  { success, message, data }     -> { message, data }
  */
 export function unwrap(response) {
   const body = response?.data
   if (typeof body === 'string') return { message: body, data: null }
-  if (body && typeof body === 'object') return { message: body.message || '', data: body.data ?? null }
+  if (body && typeof body === 'object') {
+    if (typeof body.success === 'boolean') return { message: body.message || '', data: body.data ?? null }
+    return { message: body.message || '', data: body }
+  }
   return { message: '', data: null }
 }
 
 const STATUS_MESSAGES = {
-  400: 'Some details are not valid. Check the form and try again.',
+  400: 'Some details are not valid. Check them and try again.',
   401: 'Your session has ended. Sign in again.',
   403: 'You do not have access to this.',
   404: 'This service is not available on the server yet.',
@@ -54,8 +76,8 @@ const STATUS_MESSAGES = {
 
 /**
  * Turns an axios error into { status, code, message, fieldErrors, data } for the UI.
- * Handles: the ApiResponse envelope, plain-string bodies, Spring's default error JSON,
- * timeouts and the server being unreachable.
+ * Handles plain-text bodies, { message } bodies, the ApiResponse envelope,
+ * Spring's default error JSON, timeouts and the server being unreachable.
  */
 export function parseApiError(error) {
   if (!error?.response) {
@@ -82,19 +104,18 @@ export function parseApiError(error) {
 
   if (typeof data === 'string') {
     const text = data.trim()
-    // An HTML error page is not a message for people.
-    const usable = text && !text.startsWith('<')
+    const usable = text && !text.startsWith('<') // an HTML error page is not a message for people
     return { status, code: 'ERROR', message: usable ? text : fallback, fieldErrors: {} }
   }
 
   if (data && typeof data === 'object') {
-    // Spring's default error JSON has "error": "Internal Server Error" and often an empty message.
     const isSpringDefault = !data.code && 'error' in data && 'path' in data
-    const message = isSpringDefault ? data.message || fallback : data.message || fallback
+    let message = data.message || fallback
+    if (isSpringDefault && (status >= 500 || !data.message)) message = fallback
     return {
       status,
       code: data.code || 'ERROR',
-      message: status >= 500 && isSpringDefault ? fallback : message,
+      message,
       fieldErrors: data.errors && typeof data.errors === 'object' ? data.errors : {},
       data: data.data ?? null,
     }

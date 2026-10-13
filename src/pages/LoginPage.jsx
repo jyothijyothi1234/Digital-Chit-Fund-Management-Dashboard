@@ -12,7 +12,11 @@ import { useAuth } from '../auth/useAuth'
 import { OTP_DEFAULTS } from '../config'
 import { savePendingVerification } from '../utils/flowStorage'
 import { useDocumentTitle } from '../utils/hooks'
-import { normalizeIdentifier, validateIdentifier, validatePassword } from '../utils/validators'
+import {
+  normalizeIdentifier,
+  validateIdentifier,
+  validatePassword,
+} from '../utils/validators'
 
 export default function LoginPage() {
   useDocumentTitle('Sign in')
@@ -25,7 +29,11 @@ export default function LoginPage() {
   const [sendingOtp, setSendingOtp] = useState(false)
 
   const formik = useFormik({
-    initialValues: { identifier: location.state?.identifier || '', password: '', remember: true },
+    initialValues: {
+      identifier: location.state?.identifier || '',
+      password: '',
+      remember: true,
+    },
     validate: (values) => {
       const errors = {}
       const id = validateIdentifier(values.identifier)
@@ -43,8 +51,10 @@ export default function LoginPage() {
         navigate(location.state?.from || '/dashboard', { replace: true })
       } catch (error) {
         const err = parseApiError(error)
-        if (Object.keys(err.fieldErrors).length) helpers.setErrors(err.fieldErrors)
-        if (err.code === 'INVALID_CREDENTIALS' || err.status === 401) helpers.setFieldValue('password', '', false)
+        if (Object.keys(err.fieldErrors).length)
+          helpers.setErrors(err.fieldErrors)
+        if (err.code === 'INVALID_CREDENTIALS' || err.status === 401)
+          helpers.setFieldValue('password', '', false)
         setProblem(err)
       }
     },
@@ -52,7 +62,8 @@ export default function LoginPage() {
 
   // Account exists but the OTP step was never finished: send a fresh OTP and continue there.
   const continueVerification = async () => {
-    const mobile = problem?.data?.mobile || normalizeIdentifier(formik.values.identifier)
+    const mobile =
+      problem?.data?.mobile || normalizeIdentifier(formik.values.identifier)
     setSendingOtp(true)
     try {
       const { data } = await resendOtp({ mobile })
@@ -62,7 +73,11 @@ export default function LoginPage() {
       const err = parseApiError(error)
       if (err.code === 'OTP_COOLDOWN') {
         // An OTP was sent moments ago and is still valid.
-        savePendingVerification({ mobile, otpInfo: null, defaults: OTP_DEFAULTS })
+        savePendingVerification({
+          mobile,
+          otpInfo: null,
+          defaults: OTP_DEFAULTS,
+        })
         navigate('/verify-otp')
       } else {
         setProblem(err)
@@ -72,13 +87,18 @@ export default function LoginPage() {
     }
   }
 
-  const showError = (name) => (formik.touched[name] || formik.submitCount > 0 ? formik.errors[name] : undefined)
+  const showError = (name) =>
+    formik.touched[name] || formik.submitCount > 0
+      ? formik.errors[name]
+      : undefined
 
   return (
     <AuthLayout headline="Your chit, every month, in one place.">
       <header className="form-head">
         <h1 className="form-head__title">Sign in</h1>
-        <p className="form-head__lede">Use the mobile number or email you registered with.</p>
+        <p className="form-head__lede">
+          Use the mobile number or email you registered with.
+        </p>
       </header>
 
       {flash && !problem && <Alert tone="success">{flash}</Alert>}
@@ -88,7 +108,12 @@ export default function LoginPage() {
           tone={problem.code === 'ACCOUNT_NOT_VERIFIED' ? 'info' : 'error'}
           action={
             problem.code === 'ACCOUNT_NOT_VERIFIED' && (
-              <button type="button" className="link-btn" onClick={continueVerification} disabled={sendingOtp}>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={continueVerification}
+                disabled={sendingOtp}
+              >
                 {sendingOtp ? 'Sending OTP…' : 'Verify mobile number'}
               </button>
             )
@@ -127,11 +152,20 @@ export default function LoginPage() {
         />
 
         <label className="check">
-          <input type="checkbox" name="remember" checked={formik.values.remember} onChange={formik.handleChange} />
+          <input
+            type="checkbox"
+            name="remember"
+            checked={formik.values.remember}
+            onChange={formik.handleChange}
+          />
           <span>Keep me signed in on this device</span>
         </label>
 
-        <Button loading={formik.isSubmitting} loadingText="Signing in…" className="btn--block">
+        <Button
+          loading={formik.isSubmitting}
+          loadingText="Signing in…"
+          className="btn--block"
+        >
           Sign in
         </Button>
       </form>
