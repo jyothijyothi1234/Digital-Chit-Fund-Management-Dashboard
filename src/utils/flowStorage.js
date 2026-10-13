@@ -34,10 +34,8 @@ function remove(key) {
 function deadlines(otpInfo, defaults) {
   const now = Date.now()
   return {
-    expiresAt:
-      now + (otpInfo?.expiresInSeconds ?? defaults.expiresInSeconds) * 1000,
-    resendAt:
-      now + (otpInfo?.resendAfterSeconds ?? defaults.resendAfterSeconds) * 1000,
+    expiresAt: now + (otpInfo?.expiresInSeconds ?? defaults.expiresInSeconds) * 1000,
+    resendAt: now + (otpInfo?.resendAfterSeconds ?? defaults.resendAfterSeconds) * 1000,
     maxAttempts: otpInfo?.maxAttempts ?? defaults.maxAttempts,
     attemptsUsed: 0,
   }
@@ -53,8 +51,7 @@ export const updatePendingVerification = (record) => write(PENDING_KEY, record)
 export const loadPendingVerification = () => read(PENDING_KEY)
 export const clearPendingVerification = () => remove(PENDING_KEY)
 
-export const saveRegisterDraft = ({ name, mobile, email }) =>
-  write(DRAFT_KEY, { name, mobile, email })
+export const saveRegisterDraft = ({ name, mobile, email }) => write(DRAFT_KEY, { name, mobile, email })
 export const loadRegisterDraft = () => read(DRAFT_KEY)
 export const clearRegisterDraft = () => remove(DRAFT_KEY)
 

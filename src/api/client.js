@@ -24,7 +24,9 @@ export const http = axios.create({
 http.interceptors.request.use((config) => {
   const token = getAccessToken()
   config.headers = config.headers || {}
-  const hasAuth = Boolean(config.headers.Authorization || config.headers.authorization)
+  const hasAuth = Boolean(
+    config.headers.Authorization || config.headers.authorization,
+  )
   if (token && !hasAuth && !PUBLIC_PATHS.includes(config.url)) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -38,7 +40,13 @@ http.interceptors.response.use(
     const status = error.response?.status
     const url = error.config?.url
     const usedSavedToken = !error.config?.skipAuthEvent
-    if (status === 401 && url && !PUBLIC_PATHS.includes(url) && usedSavedToken && getAccessToken()) {
+    if (
+      status === 401 &&
+      url &&
+      !PUBLIC_PATHS.includes(url) &&
+      usedSavedToken &&
+      getAccessToken()
+    ) {
       window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
     }
     return Promise.reject(error)
@@ -46,7 +54,10 @@ http.interceptors.response.use(
 )
 
 /** Bearer header for a token that is not saved yet (right after login). */
-export const withToken = (token) => ({ headers: { Authorization: `Bearer ${token}` }, skipAuthEvent: true })
+export const withToken = (token) => ({
+  headers: { Authorization: `Bearer ${token}` },
+  skipAuthEvent: true,
+})
 
 /**
  * Normalises any success body into { message, data }.
@@ -59,7 +70,8 @@ export function unwrap(response) {
   const body = response?.data
   if (typeof body === 'string') return { message: body, data: null }
   if (body && typeof body === 'object') {
-    if (typeof body.success === 'boolean') return { message: body.message || '', data: body.data ?? null }
+    if (typeof body.success === 'boolean')
+      return { message: body.message || '', data: body.data ?? null }
     return { message: body.message || '', data: body }
   }
   return { message: '', data: null }
@@ -85,7 +97,8 @@ export function parseApiError(error) {
       return {
         status: 0,
         code: 'TIMEOUT',
-        message: 'The server took too long to respond. Check your connection and try again.',
+        message:
+          'The server took too long to respond. Check your connection and try again.',
         fieldErrors: {},
       }
     }
@@ -100,12 +113,19 @@ export function parseApiError(error) {
   const { status, data } = error.response
   const fallback =
     STATUS_MESSAGES[status] ||
-    (status >= 500 ? 'Something went wrong on the server. Please try again in a moment.' : 'Request failed.')
+    (status >= 500
+      ? 'Something went wrong on the server. Please try again in a moment.'
+      : 'Request failed.')
 
   if (typeof data === 'string') {
     const text = data.trim()
     const usable = text && !text.startsWith('<') // an HTML error page is not a message for people
-    return { status, code: 'ERROR', message: usable ? text : fallback, fieldErrors: {} }
+    return {
+      status,
+      code: 'ERROR',
+      message: usable ? text : fallback,
+      fieldErrors: {},
+    }
   }
 
   if (data && typeof data === 'object') {
@@ -116,7 +136,8 @@ export function parseApiError(error) {
       status,
       code: data.code || 'ERROR',
       message,
-      fieldErrors: data.errors && typeof data.errors === 'object' ? data.errors : {},
+      fieldErrors:
+        data.errors && typeof data.errors === 'object' ? data.errors : {},
       data: data.data ?? null,
     }
   }

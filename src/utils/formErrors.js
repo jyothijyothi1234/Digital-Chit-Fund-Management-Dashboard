@@ -6,9 +6,8 @@
  * pointer (e.g. while clicking "Forgot password?" or a link below).
  */
 export function fieldError(form, name) {
-    const value = form.values[name]
-    const hasValue = typeof value === 'string' ? value.trim() !== '' : Boolean(value)
-    if (form.submitCount > 0 || (form.touched[name] && hasValue)) return form.errors[name]
-    return undefined
-  }
-  
+  const value = form.values[name]
+  const hasValue = typeof value === 'string' ? value.trim() !== '' : Boolean(value)
+  if (form.submitCount > 0 || (form.touched[name] && hasValue)) return form.errors[name]
+  return undefined
+}
